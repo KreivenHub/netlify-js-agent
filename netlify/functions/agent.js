@@ -11,7 +11,7 @@ exports.handler = async (event, context) => {
         };
     }
 
-    const AGENT_SECRET_KEY = process.env.AGENT_SECRET_KEY || '1234567';
+    const AGENT_SECRET_KEY = process.env.AGENT_SECRET_KEY || 'YourSuperSecretKey123!@#';
     const requestKey = event.headers['x-agent-key'];
     if (requestKey !== AGENT_SECRET_KEY) {
         return { statusCode: 403, body: JSON.stringify({ success: false, message: 'Forbidden: Invalid Agent Key' }) };
@@ -25,6 +25,7 @@ exports.handler = async (event, context) => {
     const donorHandlers = [
         handle_genyoutube_online,
         handle_mp3youtube_cc,
+        handle_savenow_to,
     ];
     
     const handlerIndex = requestCounter % donorHandlers.length;
@@ -108,7 +109,6 @@ async function handle_genyoutube_online(videoId, requestedFormat) {
             return { success: false, message: 'Donor Error (genyoutube): Failed to get final link.', details: dataStep2 };
         }
     } catch (error) {
-        console.error('Error in genyoutube handler:', error.message);
         return { success: false, message: `Donor Error (genyoutube): Request failed - ${error.message}` };
     }
 }
@@ -153,7 +153,34 @@ async function handle_mp3youtube_cc(videoId, requestedFormat) {
             return { success: false, message: 'Donor Error (y2meta): Failed to get final link.', details: resultData };
         }
     } catch (error) {
-        console.error('Error in y2meta handler:', error.message);
         return { success: false, message: `Donor Error (y2meta): Request failed - ${error.message}` };
+    }
+}
+
+async function handle_savenow_to(videoId, requestedFormat) {
+    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const apiUrl = `https://p.savenow.to/ajax/download.php?url=${encodeURIComponent(youtubeUrl)}&format=${requestedFormat}&api=dfcb6d76f2f6a9894gjkege8a4ab232222`;
+    const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36', 'Referer': 'https://y2down.cc/' };
+    try {
+        const res1 = await axios.get(apiUrl, { headers, timeout: 30000 });
+        const dataStep1 = res1.data;
+        const taskId = dataStep1?.id;
+        const progressUrl = dataStep1?.progress_url || `https://p.savenow.to/api/progress?id=${taskId}`;
+        if (!taskId) return { success: false, message: 'Donor Error (savenow): Failed to get task ID.', details: dataStep1 };
+
+        for (let i = 0; i < 40; i++) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const res2 = await axios.get(progressUrl, { headers, timeout: 10000 });
+            const progressData = res2.data;
+            const statusText = progressData?.text?.toLowerCase();
+            if (statusText === 'finished') {
+                if (progressData.download_url) return { success: true, download_url: progressData.download_url };
+            } else if (statusText === 'error') {
+                return { success: false, message: `Donor Error (savenow): ${progressData.error || 'Unknown error'}` };
+            }
+        }
+        return { success: false, message: 'Donor Error (savenow): Timed out waiting for link.' };
+    } catch (error) {
+        return { success: false, message: `Donor Error (savenow): Request failed - ${error.message}` };
     }
 }
