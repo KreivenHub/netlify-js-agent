@@ -1,8 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-let requestCounter = 0;
-
 exports.handler = async (event, context) => {
     if (Object.keys(event.queryStringParameters).length === 0) {
         return {
@@ -23,14 +21,15 @@ exports.handler = async (event, context) => {
     }
 
     const donorHandlers = [
-        handle_genyoutube_online,
         handle_mp3youtube_cc,
         handle_savenow_to,
+        handle_mp3youtube_cc,
+        handle_savenow_to,
+        handle_mp3youtube_cc,
+        handle_genyoutube_online,
     ];
     
-    const handlerIndex = requestCounter % donorHandlers.length;
-    const selectedHandler = donorHandlers[handlerIndex];
-    requestCounter++;
+    const selectedHandler = donorHandlers[Math.floor(Math.random() * donorHandlers.length)];
 
     try {
         const result = await selectedHandler(videoId, requestedFormat);
