@@ -11,7 +11,7 @@ exports.handler = async (event, context) => {
         };
     }
 
-    const AGENT_SECRET_KEY = process.env.AGENT_SECRET_KEY || 'YourSuperSecretKey123!@#';
+    const AGENT_SECRET_KEY = process.env.AGENT_SECRET_KEY || '1234567';
     const requestKey = event.headers['x-agent-key'];
     if (requestKey !== AGENT_SECRET_KEY) {
         return { statusCode: 403, body: JSON.stringify({ success: false, message: 'Forbidden: Invalid Agent Key' }) };
